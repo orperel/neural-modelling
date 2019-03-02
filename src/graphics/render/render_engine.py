@@ -10,12 +10,12 @@ from panda3d.core import CardMaker
 from panda3d.core import Light, Spotlight
 from panda3d.core import TextNode
 from panda3d.core import LVector3
+from panda3d.core import Filename
 import sys
 import os
 
 
 class RenderEngine:
-
     def __init__(self):
         self.base = self.initialize_scene()
 
@@ -104,6 +104,15 @@ class RenderEngine:
         """
         self.triangle_list.addVertices(v1, v2, v3)
 
+    def add_mesh(self, mesh):
+        for vertex in mesh.vertices:
+            x,y,z = vertex
+            self.add_vertex(x, y, z)
+
+        for face in mesh.faces:
+            v1, v2, v3 = face   # Assume faces to be triangular
+            self.add_triangle(v1, v2, v3)
+
     def toggleLightsSide(self):
         self.is_light_side_on = not self.is_light_side_on
 
@@ -115,7 +124,6 @@ class RenderEngine:
             render.setLightOff(self.light_side)
 
     def toggleLightsUp(self):
-        global cube
         self.is_light_top_on = not self.is_light_top_on
 
         if self.is_light_top_on:
@@ -124,3 +132,19 @@ class RenderEngine:
             self.light_top.lookAt(10, 0, 0)
         else:
             render.setLightOff(self.light_top)
+
+    def load_model(self, path):
+        # Get the location of the 'py' file I'm running:
+        mydir = os.path.dirname(os.path.abspath(sys.path[0]))
+
+        # Convert that to panda's unix-style notation.
+        mydir = Filename.fromOsSpecific(mydir).getFullpath()
+
+        # Now load the model:
+        model = loader.loadModel(mydir + path)
+        model.reparentTo(render)
+
+        model.setScale(100)
+        model.hprInterval(1.5, (360, 360, 360)).loop()
+
+        return model
