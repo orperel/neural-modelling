@@ -4,6 +4,7 @@ from graphics.modifiers.abstract_modifier import AbstractModifier
 class TranslateVertexModifier(AbstractModifier):
 
     def __init__(self, mesh, v_id, tx, ty, tz):
+        super().__init__()
         self.mesh = mesh
         self.v_id = v_id
         self.tx = tx

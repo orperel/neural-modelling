@@ -1,30 +1,56 @@
 import random
+from torch.utils.data import Dataset
 from graphics.units.procedural_primitives import ProceduralPrimitives
 from graphics.modifiers.translate_vertex import TranslateVertexModifier
+from graphics.modifiers.translate_edge import TranslateEdgeModifier
+from graphics.modifiers.translate_face import TranslateFaceModifier
 
 
-class NoisyPrimitivesDataset:
+class NoisyPrimitivesDataset(Dataset):
 
     def __init__(self,
-                 min_modifier_steps=3,
-                 max_modifier_steps=15,
+                 size=5000,
+                 min_modifier_steps=1,
+                 max_modifier_steps=2,
+                 min_pertubration=-0.5,
+                 max_pertubration=0.5,
                  modifiers_pool=None):
+        self.size = size    # Data is generated on the fly, define how many entries to create
         self.min_modifier_steps = min_modifier_steps
         self.max_modifier_steps = max_modifier_steps
-        self.modfiers_pool = modifiers_pool or [TranslateVertexModifier]
+        self.min_pertubration = min_pertubration
+        self.max_pertubration = max_pertubration
+        self.modfiers_pool = modifiers_pool or [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier]
 
-    @staticmethod
-    def _generate_modifier(modifier_class, mesh):
+    def _generate_modifier(self, modifier_class, mesh):
 
         if modifier_class == TranslateVertexModifier:
             v_id = random.randint(0, len(mesh.vertices) - 1)
-            tx = random.uniform(0.0, 0.5)
-            ty = random.uniform(0.0, 0.5)
-            tz = random.uniform(0.0, 0.5)
+            tx = random.uniform(self.min_pertubration, self.max_pertubration)
+            ty = random.uniform(self.min_pertubration, self.max_pertubration)
+            tz = random.uniform(self.min_pertubration, self.max_pertubration)
 
             modifier = TranslateVertexModifier(mesh=mesh,
                                                v_id=v_id,
                                                tx=tx, ty=ty, tz=tz)
+        elif modifier_class == TranslateEdgeModifier:
+            e_id = random.randint(0, len(mesh.edges) - 1)
+            tx = random.uniform(self.min_pertubration, self.max_pertubration)
+            ty = random.uniform(self.min_pertubration, self.max_pertubration)
+            tz = random.uniform(self.min_pertubration, self.max_pertubration)
+
+            modifier = TranslateEdgeModifier(mesh=mesh,
+                                             e_id=e_id,
+                                             tx=tx, ty=ty, tz=tz)
+        elif modifier_class == TranslateFaceModifier:
+            f_id = random.randint(0, len(mesh.faces) - 1)
+            tx = random.uniform(self.min_pertubration, self.max_pertubration)
+            ty = random.uniform(self.min_pertubration, self.max_pertubration)
+            tz = random.uniform(self.min_pertubration, self.max_pertubration)
+
+            modifier = TranslateFaceModifier(mesh=mesh,
+                                             f_id=f_id,
+                                             tx=tx, ty=ty, tz=tz)
         else:
             raise ValueError('Unsupported modifier class')
 
@@ -42,3 +68,9 @@ class NoisyPrimitivesDataset:
             mesh = modifier.execute()
 
         return mesh
+
+    def __getitem__(self, index):
+        return self.generate_noisy_cube()
+
+    def __len__(self):
+        return self.size

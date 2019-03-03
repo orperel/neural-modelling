@@ -3,8 +3,8 @@ class Mesh:
 
     def __init__(self):
         self.vertices = list()
-        self.edges = set()
-        self.faces = set()
+        self.edges = list()
+        self.faces = list()
 
         self.vertices_to_edges = {}
         self.edges_to_faces = {}
@@ -19,7 +19,7 @@ class Mesh:
         """
         :param e: tuple of 2 vertex indices
         """
-        self.edges.add(e)
+        self.edges.append(e)
         for vertex in e:
             self.vertices_to_edges.setdefault(vertex, []).append(e)
 
@@ -27,7 +27,7 @@ class Mesh:
         """
         :param f: tuple of n vertex indices
         """
-        self.faces.add(f)
+        self.faces.append(f)
 
         vertices_iter = iter(f)  # Iterate over pairs of vertices
         v_first = next(vertices_iter)
