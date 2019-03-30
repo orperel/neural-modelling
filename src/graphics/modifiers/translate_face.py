@@ -4,8 +4,7 @@ from graphics.modifiers.abstract_modifier import AbstractModifier
 class TranslateFaceModifier(AbstractModifier):
 
     def __init__(self, mesh, f_id, tx, ty, tz):
-        super().__init__()
-        self.mesh = mesh
+        super().__init__(mesh)
         self.f_id = f_id
         self.tx = tx
         self.ty = ty
@@ -36,3 +35,17 @@ class TranslateFaceModifier(AbstractModifier):
             self.mesh.vertices[v_id] = updated_vertex
 
         return self.mesh
+
+    def affected_elements(self) -> dict:
+        return {
+            'pre_modification': {
+                'vertices': [],
+                'edges': [],
+                'faces': [self.f_id]
+            },
+            'post_modification': {
+                'vertices': [],
+                'edges': [],
+                'faces': [self.f_id]
+            }
+        }

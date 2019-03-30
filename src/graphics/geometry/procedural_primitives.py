@@ -1,4 +1,4 @@
-from graphics.units.mesh import Mesh
+from graphics.geometry.mesh import Mesh
 
 class ProceduralPrimitives:
 
@@ -7,6 +7,22 @@ class ProceduralPrimitives:
 
     @staticmethod
     def generate_cube():
+        """
+        :return: A cube with the following structure of mesh (numbers representing vertex ids)
+
+                                      6 ______________ 7
+                                       /|            /|
+                                      / |           / |
+                                     /  |          /  |
+            Y                     4 --------------- 5 |
+            ^      Z                |   |         |   |
+            |    ^                  | 2 |_________|___| 3
+            |   /                   |  /          |  /
+            |  /                    | /           | /
+            | /                     |/            |/
+            |/--------> X         0 --------------- 1
+
+        """
         cube = Mesh()
 
         cube.add_vertex((-1, -1, -1))  # 0
