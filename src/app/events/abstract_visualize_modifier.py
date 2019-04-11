@@ -5,6 +5,7 @@ from graphics.render.renderable_mesh import RenderableMesh
 from graphics.render.renderable_selection import RenderableSelection
 from graphics.render.render_engine import RenderEngine
 from graphics.modifiers.abstract_modifier import AbstractModifier
+from app.modifier_visitors.affected_elements_visitor import AffectedElementsVisitor
 
 
 class VisualizeModifierEventHandler(EventHandler):
@@ -29,7 +30,8 @@ class VisualizeModifierEventHandler(EventHandler):
         affected_elements_category = self._get_affected_elements_category()
         selection_color = self._get_selection_color().value
 
-        selected_elements = modifier.affected_elements()[affected_elements_category]
+        visitor = AffectedElementsVisitor()
+        selected_elements = visitor.visit(modifier)[affected_elements_category]
         renderable_selection = RenderableSelection(mesh=modifier.mesh, selection_color=selection_color)
         self._populate_renderable_from_selection(selected_elements, renderable_selection)
 

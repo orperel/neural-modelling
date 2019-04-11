@@ -1,0 +1,70 @@
+CUDA: False
+DEBUG_LEVEL: {} #{'show_gt_animations'}
+MODEL:
+  FEATURE:
+    # Feature extraction block architecture
+    ARCHITECTURE: resnet50
+    # If true - don't allow gradient flow to affect the model.
+    FREEZE: True
+  IMG_TO_SEQ:
+    # Features to sequence block architecture
+    ARCHITECTURE: transformer
+    MAX_SEQUENCE_LENGTH: 100
+    D_OUTPUT: 2048
+    D_WORD_VEC: 2048
+    D_MODEL: 2048
+    D_INNER: 2048
+    N_LAYERS: 6
+    N_HEAD: 8
+    D_K: 64
+    D_V: 64
+    DROPOUT: 0.1
+TRAIN:
+    DATASET:
+      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
+      TYPE: noisy_primitives
+      # Amount of primitives to generate
+      SIZE: 5000
+      # True when the first |SIZE| generated primitives should be cached for future epochs.
+      # False if random samples should be regenerated each time the dataset is sampled.
+      CACHE: True
+      # Pool of modifier types to sample from
+      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
+      # Minimum amount to shift elements around. Range ~ [-1,1]
+      MIN_PERTUBRATION: -0.5
+      # Maximum amount to shift elements around. Range ~ [-1,1]
+      MAX_PERTUBRATION: -0.5
+      # Mimimum amount of modifiers to sample for each primitive
+      MIN_MODIFIER_STEPS: 5
+      # Maximum amount of modifiers to sample for each primitive
+      MAX_MODIFIER_STEPS: 10
+    EPOCHS: 10
+    BATCH_SIZE: 1
+    NUM_WORKERS: 0
+    OPTIMIZER:
+      TYPE: 'adam'
+      BETAS: [0.9, 0.98]
+      EPS: 1e-09
+      SCHEDULED: True
+      N_WARMUP_STEPS: 4000
+TEST:
+    DATASET:
+      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
+      TYPE: noisy_primitives
+      # Amount of primitives to generate
+      SIZE: 250
+      # True when the first |SIZE| generated primitives should be cached for future epochs.
+      # False if random samples should be regenerated each time the dataset is sampled.
+      CACHE: True
+      # Pool of modifier types to sample from
+      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
+      # Minimum amount to shift elements around. Range ~ [-1,1]
+      MIN_PERTUBRATION: -0.5
+      # Maximum amount to shift elements around. Range ~ [-1,1]
+      MAX_PERTUBRATION: -0.5
+      # Mimimum amount of modifiers to sample for each primitive
+      MIN_MODIFIER_STEPS: 5
+      # Maximum amount of modifiers to sample for each primitive
+      MAX_MODIFIER_STEPS: 10
+    BATCH_SIZE: 1
+    NUM_WORKERS: 0
