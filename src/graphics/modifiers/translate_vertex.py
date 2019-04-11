@@ -6,12 +6,14 @@ class TranslateVertexModifier(AbstractModifier):
     def __init__(self, mesh, v_id, tx, ty, tz):
         super().__init__(mesh)
         self.v_id = v_id
+        self.vertex_data = None
         self.tx = tx
         self.ty = ty
         self.tz = tz
 
     def execute(self):
         single_vertex_data = self.mesh.vertices[self.v_id]
+        self.vertex_data = single_vertex_data
         updated_vertex = (
             single_vertex_data[0] + self.tx,
             single_vertex_data[1] + self.ty,
@@ -34,16 +36,3 @@ class TranslateVertexModifier(AbstractModifier):
 
         return self.mesh
 
-    def affected_elements(self) -> dict:
-        return {
-            'pre_modification': {
-                'vertices': [self.v_id],
-                'edges': [],
-                'faces': []
-            },
-            'post_modification': {
-                'vertices': [self.v_id],
-                'edges': [],
-                'faces': []
-            }
-        }

@@ -6,12 +6,16 @@ class TranslateFaceModifier(AbstractModifier):
     def __init__(self, mesh, f_id, tx, ty, tz):
         super().__init__(mesh)
         self.f_id = f_id
+        self.face_vdata = None
         self.tx = tx
         self.ty = ty
         self.tz = tz
 
     def execute(self):
-        for v_id in self.mesh.faces[self.f_id]:
+
+        face_vids = self.mesh.faces[self.f_id]
+        self.face_vdata = [self.mesh.vertices[vid] for vid in face_vids]
+        for v_id in face_vids:
             single_vertex_data = self.mesh.vertices[v_id]
             updated_vertex = (
                 single_vertex_data[0] + self.tx,
@@ -36,16 +40,3 @@ class TranslateFaceModifier(AbstractModifier):
 
         return self.mesh
 
-    def affected_elements(self) -> dict:
-        return {
-            'pre_modification': {
-                'vertices': [],
-                'edges': [],
-                'faces': [self.f_id]
-            },
-            'post_modification': {
-                'vertices': [],
-                'edges': [],
-                'faces': [self.f_id]
-            }
-        }

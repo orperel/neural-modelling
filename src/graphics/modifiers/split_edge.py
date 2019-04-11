@@ -59,7 +59,7 @@ class SplitEdgeModifier(AbstractModifier):
 
         self.new_vid = v_new_id
 
-        self.edge = edge_to_split
+        self.edge = [v0_coords, v1_coords]
         self.associated_faces = associated_faces
         self.edges_of_associated_faces = edges_of_associated_faces
 
@@ -72,17 +72,3 @@ class SplitEdgeModifier(AbstractModifier):
         self.mesh.restore_edge(self.e_id, self.edge, self.associated_faces, self.edges_of_associated_faces)
 
         return self.mesh
-
-    def affected_elements(self) -> dict:
-        return {
-            'pre_modification': {
-                'vertices': [],
-                'edges': [self.e_id],
-                'faces': []
-            },
-            'post_modification': {
-                'vertices': [self.new_vid],
-                'edges': self.new_edges,
-                'faces': []
-            }
-        }

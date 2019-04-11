@@ -6,12 +6,16 @@ class TranslateEdgeModifier(AbstractModifier):
     def __init__(self, mesh, e_id, tx, ty, tz):
         super().__init__(mesh)
         self.e_id = e_id
+        self.edge_vdata = None
         self.tx = tx
         self.ty = ty
         self.tz = tz
 
     def execute(self):
-        for v_id in self.mesh.edges[self.e_id]:
+
+        edge_vids = self.mesh.edges[self.e_id]
+        self.edge_vdata = [self.mesh.vertices[vid] for vid in edge_vids]
+        for v_id in edge_vids:
             single_vertex_data = self.mesh.vertices[v_id]
             updated_vertex = (
                 single_vertex_data[0] + self.tx,
@@ -35,17 +39,3 @@ class TranslateEdgeModifier(AbstractModifier):
             self.mesh.vertices[v_id] = updated_vertex
 
         return self.mesh
-
-    def affected_elements(self) -> dict:
-        return {
-            'pre_modification': {
-                'vertices': [],
-                'edges': [self.e_id],
-                'faces': []
-            },
-            'post_modification': {
-                'vertices': [],
-                'edges': [self.e_id],
-                'faces': []
-            }
-        }
