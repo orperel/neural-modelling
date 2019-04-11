@@ -1,54 +1,37 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from app.modifier_visitors.modifier_id_visitor import ModifierIDVisitor
-from app.modifier_visitors.modifier_params_visitor import ModifierParamsVisitor
-from app.modifier_visitors.selected_element_position_visitor import SelectedElementPositionVisitor
-from app.modifier_visitors.selected_element_type_visitor import SelectedElementTypeVisitor
+from app.modifier_visitors.selected_element_type_visitor import ElementType
 
 
-class ModifiersEncoder:
+class ModifiersDecoder(nn.Module):
 
-    def __init__(self):
-        self.modifier_id_visitor = ModifierIDVisitor()
-        self.selected_element_type_visitor = SelectedElementTypeVisitor()
-        self.selected_element_position_visitor = SelectedElementPositionVisitor()
-        self.modifier_params_visitor = ModifierParamsVisitor()
+    def __init__(self, encoding_size):
+        super().__init__()
+        modifiers_classes_count = ModifierIDVisitor.max_id() + 1
+        element_types_count = len([element_type.value for element_type in ElementType])
+        max_selected_element_coords = 9
+        max_params = 3
 
-    @staticmethod
-    def to_one_hot(n, k):
-        """
-        :param n: Number of classes (i.e: for 0,1,2,3 n = 4)
-        :param k: Index of dimension to set to 1
-        :return: One hot PyTorch tensor
-        """
-        idx = torch.tensor([k])
-        one_hot = torch.zeros(n).scatter_(0, idx, 1.)
-        return one_hot
+        self.enc_to_class_id = nn.Linear(encoding_size, modifiers_classes_count, bias=True)
+        self.enc_to_element_type = nn.Linear(encoding_size, element_types_count, bias=True)
+        self.enc_to_selected_element_pos = nn.Linear(encoding_size, max_selected_element_coords, bias=True)
+        self.enc_to_modifier_params = nn.Linear(encoding_size, max_params, bias=True)
 
-    def encode_modifier_id(self, modifier):
-        modifier_id = self.modifier_id_visitor.visit(modifier)
-        modifier_id = self.to_one_hot(n=self.modifier_id_visitor.max_id() + 1, k=modifier_id)
-        return modifier_id
+        nn.init.xavier_normal_(self.enc_to_class_id.weight)
+        nn.init.xavier_normal_(self.enc_to_element_type.weight)
+        nn.init.xavier_normal_(self.enc_to_selected_element_pos.weight)
+        nn.init.xavier_normal_(self.enc_to_modifier_params.weight)
 
-    def encode_selected_element_type(self, modifier):
-        selected_element_type = self.selected_element_type_visitor.visit(modifier).value
-        selected_element_type = self.to_one_hot(n=3, k=selected_element_type)
-        return selected_element_type
+    def decode(self, encoding):
 
-    def encode_selected_element_pos(self, modifier):
-        selected_element_pos = self.selected_element_position_visitor.visit(modifier)
-        return torch.FloatTensor(selected_element_pos).reshape(-1)
+        modifier_class_id = self.enc_to_class_id(encoding)
+        element_type_tensor = self.enc_to_element_type(encoding)
+        element_pos_tensor = self.enc_to_selected_element_pos(encoding)
+        modifier_params = self.enc_to_modifier_params(encoding)
 
-    def encode_modifier_params(self, modifier):
-        modifier_params = self.modifier_params_visitor.visit(modifier)
-        return torch.FloatTensor(modifier_params).reshape(-1)
+        return modifier_class_id, element_type_tensor, element_pos_tensor, modifier_params
 
-    def encode(self, modifier):
-
-        modifier_id_tensor = self.encode_modifier_id(modifier)
-        element_type_tensor = self.encode_selected_element_type(modifier)
-        element_pos_tensor = self.encode_selected_element_pos(modifier)
-        modifier_params = self.encode_modifier_params(modifier)
-
-        return torch.cat(tensors=(modifier_id_tensor, element_type_tensor, element_pos_tensor, modifier_params),
-                         dim=0)
+    def forward(self, encoding):
+        return self.decode(encoding)

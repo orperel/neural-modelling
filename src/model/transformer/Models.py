@@ -2,8 +2,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import transformer.Constants as Constants
-from transformer.Layers import EncoderLayer, DecoderLayer
+import model.transformer.Constants as Constants
+from model.transformer.Layers import EncoderLayer, DecoderLayer
 
 __author__ = "Yu-Hsiang Huang"
 
@@ -55,17 +55,13 @@ class Encoder(nn.Module):
     ''' A encoder model with self attention mechanism. '''
 
     def __init__(
-            self,
-            n_src_vocab, len_max_seq, d_word_vec,
+            self, len_max_seq, d_word_vec,
             n_layers, n_head, d_k, d_v,
             d_model, d_inner, dropout=0.1):
 
         super().__init__()
 
         n_position = len_max_seq + 1
-
-        self.src_word_emb = nn.Embedding(
-            n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
 
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
@@ -80,11 +76,16 @@ class Encoder(nn.Module):
         enc_slf_attn_list = []
 
         # -- Prepare masks
-        slf_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
-        non_pad_mask = get_non_pad_mask(src_seq)
+        # All features should participate
+        batch_dim, I_dim = src_seq.shape[:2]
+        slf_attn_mask = torch.zeros(batch_dim, I_dim, I_dim).byte()  # get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
+        non_pad_mask = torch.zeros(batch_dim, I_dim, 1).float()  # get_non_pad_mask(src_seq)
 
         # -- Forward
-        enc_output = self.src_word_emb(src_seq) + self.position_enc(src_pos)
+        # src_seq is already a feature vector, combine it with the positional encoding
+        # TODO: Or - we may need to scale the position encoding here, so it doesn't distort the feature..
+        # TODO: Or - positional encoding would be more accurate if it was 2d..
+        enc_output = src_seq + self.position_enc(src_pos)
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
@@ -103,15 +104,12 @@ class Decoder(nn.Module):
 
     def __init__(
             self,
-            n_tgt_vocab, len_max_seq, d_word_vec,
+            len_max_seq, d_word_vec,
             n_layers, n_head, d_k, d_v,
             d_model, d_inner, dropout=0.1):
 
         super().__init__()
         n_position = len_max_seq + 1
-
-        self.tgt_word_emb = nn.Embedding(
-            n_tgt_vocab, d_word_vec, padding_idx=Constants.PAD)
 
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
@@ -121,7 +119,7 @@ class Decoder(nn.Module):
             DecoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
 
-    def forward(self, tgt_seq, tgt_pos, src_seq, enc_output, return_attns=False):
+    def forward(self, tgt_seq, tgt_pos, tgt_emb, src_seq, enc_output, return_attns=False):
 
         dec_slf_attn_list, dec_enc_attn_list = [], []
 
@@ -132,10 +130,13 @@ class Decoder(nn.Module):
         slf_attn_mask_keypad = get_attn_key_pad_mask(seq_k=tgt_seq, seq_q=tgt_seq)
         slf_attn_mask = (slf_attn_mask_keypad + slf_attn_mask_subseq).gt(0)
 
-        dec_enc_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=tgt_seq)
+        dec_enc_attn_mask = None  # get_attn_key_pad_mask(seq_k=src_seq, seq_q=tgt_seq)
 
         # -- Forward
-        dec_output = self.tgt_word_emb(tgt_seq) + self.position_enc(tgt_pos)
+        # tgt_seq is already a feature vector, combine it with the positional encoding
+        # TODO: Or - we may need to scale the position encoding here, so it doesn't distort the feature..
+        # TODO: Or - positional encoding would be more accurate if it was 2d..
+        dec_output = tgt_emb + self.position_enc(tgt_pos)
 
         for dec_layer in self.layer_stack:
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
@@ -157,7 +158,7 @@ class Transformer(nn.Module):
 
     def __init__(
             self,
-            n_src_vocab, n_tgt_vocab, len_max_seq,
+            n_tgt_vocab, len_max_seq,
             d_word_vec=512, d_model=512, d_inner=2048,
             n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
             tgt_emb_prj_weight_sharing=True,
@@ -166,13 +167,13 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.encoder = Encoder(
-            n_src_vocab=n_src_vocab, len_max_seq=len_max_seq,
+            len_max_seq=len_max_seq,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
             dropout=dropout)
 
         self.decoder = Decoder(
-            n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq,
+            len_max_seq=len_max_seq,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
             dropout=dropout)
@@ -184,25 +185,27 @@ class Transformer(nn.Module):
         'To facilitate the residual connections, \
          the dimensions of all module outputs shall be the same.'
 
-        if tgt_emb_prj_weight_sharing:
-            # Share the weight matrix between target word embedding & the final logit dense layer
-            self.tgt_word_prj.weight = self.decoder.tgt_word_emb.weight
-            self.x_logit_scale = (d_model ** -0.5)
-        else:
-            self.x_logit_scale = 1.
+        self.x_logit_scale = 1.  # TODO: Or - ignore logit scale for now
+        # if tgt_emb_prj_weight_sharing:
+        #     # Share the weight matrix between target word embedding & the final logit dense layer
+        #     self.tgt_word_prj.weight = self.decoder.tgt_word_emb.weight
+        #     self.x_logit_scale = (d_model ** -0.5)
+        # else:
+        #     self.x_logit_scale = 1.
+        #
+        # if emb_src_tgt_weight_sharing:
+        #     # Share the weight matrix between source & target word embeddings
+        #     assert n_src_vocab == n_tgt_vocab, \
+        #     "To share word embedding table, the vocabulary size of src/tgt shall be the same."
+        #     self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
 
-        if emb_src_tgt_weight_sharing:
-            # Share the weight matrix between source & target word embeddings
-            assert n_src_vocab == n_tgt_vocab, \
-            "To share word embedding table, the vocabulary size of src/tgt shall be the same."
-            self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
+    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, tgt_emb):
 
-    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos):
-
-        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        # TODO: Or - not sure this is needed? We don't use EOS tokens..
+        # tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
 
         enc_output, *_ = self.encoder(src_seq, src_pos)
-        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, tgt_emb, src_seq, enc_output)
         seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
 
         return seq_logit.view(-1, seq_logit.size(2))
