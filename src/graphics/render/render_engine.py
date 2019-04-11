@@ -270,12 +270,14 @@ class RenderEngine:
         self.base.graphicsEngine.renderFrame()
         dr = self._dr_by_name(camera_name)
         tex = dr.getScreenshot()
+        num_components = tex.getNumComponents()
         if requested_format is None:
             data = tex.getRamImage()
         else:
             data = tex.getRamImageAs(requested_format)
+            num_components = len(requested_format)
         image = np.frombuffer(data, np.uint8)  # use data.get_data() instead of data in python 2
-        image.shape = (tex.getYSize(), tex.getXSize(), tex.getNumComponents())
+        image.shape = (tex.getYSize(), tex.getXSize(), num_components)
         image = np.flipud(image)
 
         self.setup_hud()
