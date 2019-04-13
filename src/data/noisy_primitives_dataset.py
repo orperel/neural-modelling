@@ -170,3 +170,20 @@ class NoisyPrimitivesDataset(Dataset):
 
     def __len__(self):
         return self.size
+
+    def __str__(self):
+        return 'NoisyPrimitivesDataset'
+
+    def summary(self):
+        description = {
+            'Type': 'NoisyPrimitivesDataset',
+            'Size': self.size,
+            'Modifiers': [entry.__name__ for entry in self.modfiers_pool],
+            'Parameters': {
+                'min_modifier_steps': self.min_modifier_steps,
+                'max_modifier_steps': self.max_modifier_steps,
+                'min_pertubration': self.min_pertubration,
+                'max_pertubration': self.max_pertubration
+            }
+        }
+        return description
