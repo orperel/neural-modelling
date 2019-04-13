@@ -1,4 +1,5 @@
-CUDA: False
+CUDA: True
+RENDERING_ENGINE_ON: False
 DEBUG_LEVEL: {} #{'show_gt_animations'}
 MODEL:
   FEATURE:
@@ -9,6 +10,8 @@ MODEL:
   IMG_TO_SEQ:
     # Features to sequence block architecture
     ARCHITECTURE: transformer
+
+    # Transformer config
     MAX_SEQUENCE_LENGTH: 100
     D_OUTPUT: 2048
     D_WORD_VEC: 2048
@@ -19,33 +22,42 @@ MODEL:
     D_K: 64
     D_V: 64
     DROPOUT: 0.1
+
+    # Scale factor for position encoder within the transformer, to balanace impact against visual features
+    POSITION_ENCODER_REGULARIZER: 0.1
 TRAIN:
+#    DATASET:
+#      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
+#      TYPE: noisy_primitives
+#      # Amount of primitives to generate
+#      SIZE: 5000
+#      # True when the first |SIZE| generated primitives should be cached for future epochs.
+#      # False if random samples should be regenerated each time the dataset is sampled.
+#      CACHE: True
+#      # Pool of modifier types to sample from
+#      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
+#      # Minimum amount to shift elements around. Range ~ [-1,1]
+#      MIN_PERTUBRATION: -0.5
+#      # Maximum amount to shift elements around. Range ~ [-1,1]
+#      MAX_PERTUBRATION: -0.5
+#      # Mimimum amount of modifiers to sample for each primitive
+#      MIN_MODIFIER_STEPS: 2
+#      # Maximum amount of modifiers to sample for each primitive
+#      MAX_MODIFIER_STEPS: 5
     DATASET:
-      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
-      TYPE: noisy_primitives
-      # Amount of primitives to generate
-      SIZE: 5000
-      # True when the first |SIZE| generated primitives should be cached for future epochs.
-      # False if random samples should be regenerated each time the dataset is sampled.
-      CACHE: True
-      # Pool of modifier types to sample from
-      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
-      # Minimum amount to shift elements around. Range ~ [-1,1]
-      MIN_PERTUBRATION: -0.5
-      # Maximum amount to shift elements around. Range ~ [-1,1]
-      MAX_PERTUBRATION: -0.5
-      # Mimimum amount of modifiers to sample for each primitive
-      MIN_MODIFIER_STEPS: 5
-      # Maximum amount of modifiers to sample for each primitive
-      MAX_MODIFIER_STEPS: 10
-    EPOCHS: 10
-    BATCH_SIZE: 1
-    NUM_WORKERS: 0
+      # A dataset of pre-rendered images. Can be used on non-display powered machines,
+      # as well as support multiple batches
+      TYPE: pregenerated
+      PATH: '/home/ubuntu/or/tmp/pycharm_project_838/data/generated/NoisyPrimitivesDataset_1_small'
+    EPOCHS: 1000
+    BATCH_SIZE: 11
+    NUM_WORKERS: 11
     OPTIMIZER:
       TYPE: 'adam'
-      BETAS: [0.9, 0.98]
-      EPS: 1e-09
-      SCHEDULED: True
+      LR: 1e-06 # 1e-03
+      BETAS: [0.9, 0.999] # [0.9, 0.98]
+      EPS: 1e-08 # 1e-09
+      SCHEDULED: False # True
       N_WARMUP_STEPS: 4000
 TEST:
     DATASET:
