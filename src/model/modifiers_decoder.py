@@ -16,13 +16,23 @@ class ModifiersDecoder(nn.Module):
 
         self.enc_to_class_id = nn.Linear(encoding_size, modifiers_classes_count, bias=True)
         self.enc_to_element_type = nn.Linear(encoding_size, element_types_count, bias=True)
-        self.enc_to_selected_element_pos = nn.Linear(encoding_size, max_selected_element_coords, bias=True)
-        self.enc_to_modifier_params = nn.Linear(encoding_size, max_params, bias=True)
+        self.enc_to_selected_element_pos = nn.Sequential(
+            nn.Linear(encoding_size, max_selected_element_coords, bias=True),
+            nn.Tanh()
+        )
+        self.enc_to_modifier_params = nn.Sequential(
+            nn.Linear(encoding_size, max_params, bias=True),
+            nn.Tanh()
+        )
 
         nn.init.xavier_normal_(self.enc_to_class_id.weight)
         nn.init.xavier_normal_(self.enc_to_element_type.weight)
-        nn.init.xavier_normal_(self.enc_to_selected_element_pos.weight)
-        nn.init.xavier_normal_(self.enc_to_modifier_params.weight)
+        for module in self.enc_to_selected_element_pos.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_normal_(module.weight)
+        for module in self.enc_to_modifier_params.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_normal_(module.weight)
 
     def decode(self, encoding):
 

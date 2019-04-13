@@ -57,7 +57,8 @@ class Encoder(nn.Module):
     def __init__(
             self, len_max_seq, d_word_vec,
             n_layers, n_head, d_k, d_v,
-            d_model, d_inner, dropout=0.1):
+            d_model, d_inner, dropout=0.1,
+            pos_enc_regularizer=1.0):
 
         super().__init__()
 
@@ -66,6 +67,7 @@ class Encoder(nn.Module):
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
             freeze=True)
+        self.pos_enc_regularizer = pos_enc_regularizer
 
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
@@ -78,14 +80,15 @@ class Encoder(nn.Module):
         # -- Prepare masks
         # All features should participate
         batch_dim, I_dim = src_seq.shape[:2]
-        slf_attn_mask = torch.zeros(batch_dim, I_dim, I_dim).byte()  # get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
-        non_pad_mask = torch.zeros(batch_dim, I_dim, 1).float()  # get_non_pad_mask(src_seq)
+        device = src_seq.device
+        slf_attn_mask = torch.zeros(batch_dim, I_dim, I_dim, device=device).byte()  # get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
+        non_pad_mask = torch.ones(batch_dim, I_dim, 1, device=device).float()  # get_non_pad_mask(src_seq)
 
         # -- Forward
         # src_seq is already a feature vector, combine it with the positional encoding
         # TODO: Or - we may need to scale the position encoding here, so it doesn't distort the feature..
         # TODO: Or - positional encoding would be more accurate if it was 2d..
-        enc_output = src_seq + self.position_enc(src_pos)
+        enc_output = src_seq + self.position_enc(src_pos) * self.pos_enc_regularizer
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
@@ -106,7 +109,8 @@ class Decoder(nn.Module):
             self,
             len_max_seq, d_word_vec,
             n_layers, n_head, d_k, d_v,
-            d_model, d_inner, dropout=0.1):
+            d_model, d_inner, dropout=0.1,
+            pos_enc_regularizer=1.0):
 
         super().__init__()
         n_position = len_max_seq + 1
@@ -114,6 +118,7 @@ class Decoder(nn.Module):
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
             freeze=True)
+        self.pos_enc_regularizer = pos_enc_regularizer
 
         self.layer_stack = nn.ModuleList([
             DecoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
@@ -136,7 +141,7 @@ class Decoder(nn.Module):
         # tgt_seq is already a feature vector, combine it with the positional encoding
         # TODO: Or - we may need to scale the position encoding here, so it doesn't distort the feature..
         # TODO: Or - positional encoding would be more accurate if it was 2d..
-        dec_output = tgt_emb + self.position_enc(tgt_pos)
+        dec_output = tgt_emb + self.position_enc(tgt_pos) * self.pos_enc_regularizer
 
         for dec_layer in self.layer_stack:
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
@@ -161,6 +166,7 @@ class Transformer(nn.Module):
             n_tgt_vocab, len_max_seq,
             d_word_vec=512, d_model=512, d_inner=2048,
             n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
+            pos_enc_regularizer=1.0,
             tgt_emb_prj_weight_sharing=True,
             emb_src_tgt_weight_sharing=True):
 
@@ -170,13 +176,13 @@ class Transformer(nn.Module):
             len_max_seq=len_max_seq,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
-            dropout=dropout)
+            dropout=dropout, pos_enc_regularizer=pos_enc_regularizer)
 
         self.decoder = Decoder(
             len_max_seq=len_max_seq,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
-            dropout=dropout)
+            dropout=dropout, pos_enc_regularizer=pos_enc_regularizer)
 
         self.tgt_word_prj = nn.Linear(d_model, n_tgt_vocab, bias=False)
         nn.init.xavier_normal_(self.tgt_word_prj.weight)

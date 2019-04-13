@@ -58,7 +58,8 @@ def _load_img2seq_block(img2seq_config):
             n_head=img2seq_config['N_HEAD'],
             d_k=img2seq_config['D_K'],
             d_v=img2seq_config['D_V'],
-            dropout=img2seq_config['DROPOUT']
+            dropout=img2seq_config['DROPOUT'],
+            pos_enc_regularizer=img2seq_config['POSITION_ENCODER_REGULARIZER'],
         )
 
         return model

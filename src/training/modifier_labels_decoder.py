@@ -8,6 +8,7 @@ class ModifierLabelsDecoder:
 
     def __init__(self):
         self.modifiers_classes_count = ModifierIDVisitor.max_id() + 1
+        self.modifiers_ignored_index = -1
         self.element_types_count = len([element_type.value for element_type in ElementType])
 
     @staticmethod
@@ -55,9 +56,11 @@ class ModifierLabelsDecoder:
         :return: The extracted value at the given range, for each row, and a binary mask tensor of the actual values
         extracted (to disregard padding).
         """
+        device = multivec.device
+
         # First get the leftmost and rightmost indices, and extract the relevant columns from multivec
-        left_lim = torch.min(start_pos).item()
-        right_lim = torch.max(end_pos).item()
+        left_lim = torch.min(start_pos)
+        right_lim = torch.max(end_pos)
         extracted_segment = multivec[:, left_lim:right_lim]
 
         # modifiers_count represents the batch size, mask_length is the TOTAL amount of relevant columns, but
@@ -69,7 +72,7 @@ class ModifierLabelsDecoder:
         mask_length = right_lim - left_lim
 
         # Create a mask of: [start_pos, start_pos + 1, .., end_pos] for EACH row.
-        tiled_indices = torch.arange(right_lim - left_lim).repeat(modifiers_count, 1) + left_lim
+        tiled_indices = torch.arange(right_lim - left_lim, device=device).repeat(modifiers_count, 1) + left_lim
 
         # Create a mask of [start_pos[i], start_pos[i], .. start_pos[i], for each row. Same goes for end_pos.
         # The binary mask is obtained where the indices are between the start and end positions.
@@ -89,7 +92,7 @@ class ModifierLabelsDecoder:
         # and the short_mask is [ [1, 1, 1], [1, 1, 1] ]
         real_length = torch.max(end_pos - start_pos).item()
         dims_per_row = (right_mask_lim - left_mask_lim)[:, :real_length]
-        short_mask = torch.arange(real_length).repeat(modifiers_count, 1) < dims_per_row
+        short_mask = torch.arange(real_length, device=device).repeat(modifiers_count, 1) < dims_per_row
 
         # We pad the original mask with an inverted mask, and the original extracted_segment with empty zero
         # values, to get "empty dimensions" we can pick from.
@@ -99,7 +102,7 @@ class ModifierLabelsDecoder:
         # contain an equal number of selected columns, but those are empty zero entries)
         inverted_mask = torch.ones_like(short_mask) - short_mask
         padded_mask = torch.cat((mask, inverted_mask), dim=1)
-        empty_entries_padding = torch.zeros(modifiers_count, real_length)
+        empty_entries_padding = torch.zeros(modifiers_count, real_length, device=multivec.device)
         padded_segment = torch.cat((extracted_segment, empty_entries_padding), dim=1)
 
         # Finally use mask select to extract the real values and obtain a shorter extracted segment.
@@ -113,14 +116,46 @@ class ModifierLabelsDecoder:
 
         return short_extracted_segment, short_mask
 
+    @staticmethod
+    @torch.no_grad()
+    def mask_padded_modifiers(encoding):
+        """
+        Encoding contains a batch where each entry contains a variable amount of modifier encodings.
+        The rest are paddings.
+        This function creates a mask where relevant modifier rows are masked as 1 bit, and irrelevant padding rows
+        are masked as zero.
+        :param encoding: (BATCH, MODIFIER_COUNT, MODIFIER_DIM) Tensor of encodings
+        :return: (MODIFIER_DIM) binary mask, 1 bit for each row
+        """
+        # Save a copy of the input encoding, to avoid destroying the original
+        mutable_encoding = encoding.clone()
+        mutable_encoding[:, 0, :] = torch.zeros_like(mutable_encoding[:, 0, :])
+
+        mutable_encoding = mutable_encoding.contiguous().view(-1, mutable_encoding.shape[-1])
+        batch_and_mod_count_dim, modifier_dim = mutable_encoding.shape
+
+        # Get the L1 norm of the vec
+        rows_zero_test = torch.norm(input=mutable_encoding, p=1, dim=1)
+
+        # Find indices of padded modifier rows (the norm is 0)
+        masked_row_indices = rows_zero_test.nonzero().squeeze()
+
+        # Mask out padded modifier rows, first as a single bit (mask_one_bit ~ (BATCH x MODIFIER_DIM, )
+        rows_mask = torch.zeros(batch_and_mod_count_dim, device=encoding.device).scatter_(0, masked_row_indices, 1)
+
+        return rows_mask
+
+    @torch.no_grad()
     def decode(self, encoding):
-        encoding = encoding.view(-1, encoding.shape[-1])
+
+        device = encoding.device
+        encoding = encoding.contiguous().view(-1, encoding.shape[-1])
         m_id_start, m_id_end = 0, self.modifiers_classes_count
         modifier_class_id = torch.argmax(encoding[:, m_id_start:m_id_end], dim=1)
 
         e_type_start = m_id_end
         e_type_end = m_id_end + self.element_types_count
-        e_pos_start = torch.LongTensor([e_type_end])
+        e_pos_start = torch.full((1,), e_type_end, device=device).long()
         e_pos_end = e_type_end + self.get_selected_elements_amount(modifier_class_id)
         m_param_start = e_pos_end
         m_param_end = e_pos_end + self.get_modifier_params_amount(modifier_class_id)
