@@ -1,10 +1,13 @@
+EXPERIMENT_NAME: 'OverfitTest'
+LOG_RATE: 30
+SAVE_RATE: 100
 CUDA: True
 RENDERING_ENGINE_ON: False
 DEBUG_LEVEL: {} #{'show_gt_animations'}
 MODEL:
   FEATURE:
     # Feature extraction block architecture
-    ARCHITECTURE: resnet50
+    ARCHITECTURE: resnet34
     # If true - don't allow gradient flow to affect the model.
     FREEZE: True
   IMG_TO_SEQ:
@@ -12,10 +15,10 @@ MODEL:
     ARCHITECTURE: transformer
 
     # Transformer config
-    MAX_SEQUENCE_LENGTH: 100
-    D_OUTPUT: 2048
-    D_WORD_VEC: 2048
-    D_MODEL: 2048
+    MAX_SEQUENCE_LENGTH: 10
+    D_OUTPUT: 512
+    D_WORD_VEC: 512
+    D_MODEL: 512
     D_INNER: 2048
     N_LAYERS: 6
     N_HEAD: 8
@@ -49,15 +52,19 @@ TRAIN:
       # as well as support multiple batches
       TYPE: pregenerated
       PATH: '/home/ubuntu/or/tmp/pycharm_project_838/data/generated/NoisyPrimitivesDataset_1_small'
-    EPOCHS: 1000
+
+      # Dimension of modifier encodings. Normally the actual modifier data is shorter than what we allocate.
+      # However, this size should be on part with the img2seq model config.
+      MODIFIERS_DIM: 512
+    EPOCHS: 30000
     BATCH_SIZE: 11
     NUM_WORKERS: 11
     OPTIMIZER:
       TYPE: 'adam'
-      LR: 1e-06 # 1e-03
-      BETAS: [0.9, 0.999] # [0.9, 0.98]
-      EPS: 1e-08 # 1e-09
-      SCHEDULED: False # True
+      LR: 1e-08 # 1e-03
+      BETAS: [0.9, 0.98]  # [0.9, 0.999]
+      EPS: 1e-09  # 1e-08
+      SCHEDULED: True
       N_WARMUP_STEPS: 4000
 TEST:
     DATASET:

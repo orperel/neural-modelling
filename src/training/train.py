@@ -8,9 +8,13 @@ from src.data.noisy_primitives_dataset import NoisyPrimitivesDataset
 from src.data.pregenerated_dataset import PregeneratedDataset
 from app.events.visualize_pre_modifier import VisualizePreModifierEventHandler
 from app.events.visualize_post_modifier import VisualizePostModifierEventHandler
+from app.modifier_visitors.modifier_id_visitor import ModifierEnum
+from app.modifier_visitors.selected_element_type_visitor import ElementType
 from model_loader import load_model
 from model.transformer.Optim import ScheduledOptim
 from training.modifier_labels_decoder import ModifierLabelsDecoder
+from evaluation.metrics import ExperimentMetrics
+from evaluation.plotter import Plotter
 
 
 class Train:
@@ -26,6 +30,10 @@ class Train:
         self.optimizer = self.initialize_optimizer(model=self.model)
 
         self.labels_decoder = ModifierLabelsDecoder()
+        self.train_metrics = ExperimentMetrics(modifier_class_labels=[m.name for m in ModifierEnum],
+                                               element_type_labels=[e.name for e in ElementType],
+                                               data_type='Training')
+        self.plotter = Plotter(experiment_env=config['EXPERIMENT_NAME'])
 
     def train(self):
 
@@ -34,10 +42,15 @@ class Train:
         train_dataloader = self.create_dataloader(config=self.config, engine=self.engine, data_type='train')
         test_dataloader = self.create_dataloader(config=self.config, engine=self.engine, data_type='test')
 
-        for epoch_id in range(epochs):
-            self.train_epoch(model=self.model,
-                             train_dataloader=train_dataloader,
-                             optimizer=self.optimizer)
+        best_train_loss = float("inf")
+
+        for epoch_id in range(1, epochs+1):
+            mean_epoch_loss = self.train_epoch(model=self.model, train_dataloader=train_dataloader,
+                                               optimizer=self.optimizer, epoch_id=epoch_id)
+
+            if mean_epoch_loss < best_train_loss:
+                best_train_loss = mean_epoch_loss
+                torch.save(self.model, 'best_train_model.pt')
 
     def load_dataset(self, dataset_config, engine):
 
@@ -52,7 +65,8 @@ class Train:
                                              max_pertubration=dataset_config['MAX_PERTUBRATION']
                                              )
         elif dataset_config['TYPE'] == 'pregenerated':
-            dataset = PregeneratedDataset(dataset_path=dataset_config['PATH'])
+            dataset = PregeneratedDataset(dataset_path=dataset_config['PATH'],
+                                          modifiers_dim=dataset_config['MODIFIERS_DIM'])
         else:
             raise ValueError('Unknown dataset type encountered in config: %r' % (dataset_config['TYPE']))
 
@@ -200,9 +214,17 @@ class Train:
         #               pred_modifier_class_id, pred_element_type_tensor, pred_element_pos_tensor, pred_modifier_params,
         #               gt_modifier_class_id, gt_element_type_tensor, gt_element_pos_tensor, gt_modifier_params)
 
-        return loss
+        log_losses = {
+            'total_loss': loss,
+            'modifier_class_loss': class_id_loss,
+            'selected_element_type_loss': elem_type_loss,
+            'selected_element_pos_loss': elem_pos_loss,
+            'modifier_params_loss': mod_params_loss
+        }
 
-    def train_epoch(self, model, train_dataloader, optimizer):
+        return loss, log_losses
+
+    def train_epoch(self, model, train_dataloader, optimizer, epoch_id):
         ''' Epoch operation in training phase'''
 
         device = self.device
@@ -226,7 +248,7 @@ class Train:
                 optimizer.zero_grad()
                 pred = self.model(rendered_triplet, modifiers, non_padded_modifiers_mask)
 
-                loss = self.calculate_loss(pred, modifiers, non_padded_modifiers_mask)
+                loss, log_losses = self.calculate_loss(pred, modifiers, non_padded_modifiers_mask)
                 loss.backward()
 
                 # Update parameters: support the case of scheduled optimizer here
@@ -240,16 +262,27 @@ class Train:
                 total_loss += batch_loss
                 total_batches += batch[1].shape[0]
                 total_modifiers += batch[1].shape[1]
+                print(f'Epoch {epoch_id} ; Batch {str(i)} ; Loss: {batch_loss:.2f} ; Total modifiers: {total_modifiers}')
 
-                print(f'Batch {str(i)} ; Loss: {batch_loss:.2f} ; Total modifiers: {total_modifiers}')
+                self.train_metrics.report_batch_results(epoch=epoch_id,
+                                                        preds=pred,
+                                                        labels=modifiers,
+                                                        losses={l_name: l.item() for l_name, l in log_losses.items()},
+                                                        total_batches=total_batches,
+                                                        total_modifiers=total_modifiers)
+
+                if epoch_id % self.config['LOG_RATE'] == 0:
+                    self.plotter.plot_aggregated_metrics(self.train_metrics, epoch_id)
+
 
             except Exception as e:
                 print(f'Exception have occured: {e}')
                 traceback.print_exc()
                 print('Skipping entry..')
 
-        torch.save(model, 'latest_model.pt')
         mean_epoch_loss = total_loss / total_batches
-        mean_loss_per_modifier = total_loss / total_modifiers
 
-        return total_loss, mean_epoch_loss, mean_loss_per_modifier
+        if epoch_id % self.config['SAVE_RATE'] == 0:
+            torch.save(model, 'latest_model.pt')
+
+        return mean_epoch_loss

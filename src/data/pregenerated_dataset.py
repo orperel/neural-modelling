@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 class PregeneratedDataset(Dataset):
 
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, modifiers_dim):
 
         self.dataset_path = dataset_path
 
@@ -14,6 +14,7 @@ class PregeneratedDataset(Dataset):
         with open(dataset_info_path, 'r') as yaml_file:
             dataset_info = yaml.load(yaml_file)
         self.dataset_info = dataset_info
+        self.modifiers_dim = modifiers_dim
 
     def __getitem__(self, index):
 
@@ -21,6 +22,11 @@ class PregeneratedDataset(Dataset):
         labels_path = os.path.join(self.dataset_path, 'labels_' + str(index) + '.pt')
         data = torch.load(data_path)
         labels = torch.load(labels_path)
+
+        # Truncate brutally. This is fine as modifiers_dim >> actual modifier encoding (most dimensions are empty)
+        if labels.shape[1] > self.modifiers_dim:
+            labels = labels[:, :self.modifiers_dim]
+
 
         return data, labels
 
