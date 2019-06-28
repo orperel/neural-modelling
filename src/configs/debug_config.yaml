@@ -1,9 +1,12 @@
 EXPERIMENT_NAME: 'OverfitTest'
+SEED: 555
 LOG_RATE: 30
 SAVE_RATE: 100
-CUDA: True
-RENDERING_ENGINE_ON: False
-DEBUG_LEVEL: {} #{'show_gt_animations'}
+CUDA: False
+RENDERING:
+  RENDERING_ENGINE_ON: True
+  DISPLAY_ON: True
+DEBUG_LEVEL: {'show_gt_animations'}
 MODEL:
   FEATURE:
     # Feature extraction block architecture
@@ -29,33 +32,24 @@ MODEL:
     # Scale factor for position encoder within the transformer, to balanace impact against visual features
     POSITION_ENCODER_REGULARIZER: 0.1
 TRAIN:
-#    DATASET:
-#      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
-#      TYPE: noisy_primitives
-#      # Amount of primitives to generate
-#      SIZE: 5000
-#      # True when the first |SIZE| generated primitives should be cached for future epochs.
-#      # False if random samples should be regenerated each time the dataset is sampled.
-#      CACHE: True
-#      # Pool of modifier types to sample from
-#      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
-#      # Minimum amount to shift elements around. Range ~ [-1,1]
-#      MIN_PERTUBRATION: -0.5
-#      # Maximum amount to shift elements around. Range ~ [-1,1]
-#      MAX_PERTUBRATION: -0.5
-#      # Mimimum amount of modifiers to sample for each primitive
-#      MIN_MODIFIER_STEPS: 2
-#      # Maximum amount of modifiers to sample for each primitive
-#      MAX_MODIFIER_STEPS: 5
     DATASET:
-      # A dataset of pre-rendered images. Can be used on non-display powered machines,
-      # as well as support multiple batches
-      TYPE: pregenerated
-      PATH: '/home/ubuntu/or/tmp/pycharm_project_838/data/generated/NoisyPrimitivesDataset_1_small'
-
-      # Dimension of modifier encodings. Normally the actual modifier data is shorter than what we allocate.
-      # However, this size should be on part with the img2seq model config.
-      MODIFIERS_DIM: 512
+      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
+      TYPE: noisy_primitives
+      # Amount of primitives to generate
+      SIZE: 5000
+      # True when the first |SIZE| generated primitives should be cached for future epochs.
+      # False if random samples should be regenerated each time the dataset is sampled.
+      CACHE: True
+      # Pool of modifier types to sample from
+      MODIFIERS: [ContractVertexPairModifier] # [SplitVertexModifier]
+      # Minimum amount to shift elements around. Range ~ [-1,1]
+      MIN_PERTUBRATION: -0.5
+      # Maximum amount to shift elements around. Range ~ [-1,1]
+      MAX_PERTUBRATION: -0.5
+      # Mimimum amount of modifiers to sample for each primitive
+      MIN_MODIFIER_STEPS: 2000
+      # Maximum amount of modifiers to sample for each primitive
+      MAX_MODIFIER_STEPS: 5000
     EPOCHS: 30000
     BATCH_SIZE: 11
     NUM_WORKERS: 11
@@ -82,8 +76,8 @@ TEST:
       # Maximum amount to shift elements around. Range ~ [-1,1]
       MAX_PERTUBRATION: -0.5
       # Mimimum amount of modifiers to sample for each primitive
-      MIN_MODIFIER_STEPS: 5
+      MIN_MODIFIER_STEPS: 50
       # Maximum amount of modifiers to sample for each primitive
-      MAX_MODIFIER_STEPS: 10
+      MAX_MODIFIER_STEPS: 100
     BATCH_SIZE: 1
     NUM_WORKERS: 0

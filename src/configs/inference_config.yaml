@@ -1,0 +1,45 @@
+EXPERIMENT_NAME: 'OverfitTest'
+SEED: 555
+CUDA: False
+RENDERING_ENGINE_ON: True
+DEBUG_LEVEL: {}
+MODEL:
+  PATH: 'best_train_model.pt'
+TEST:
+#    DATASET:
+#      # A dataset that samples an arbitrary amount of modifiers and applies them over some primitive.
+#      TYPE: noisy_primitives
+#      # Amount of primitives to generate
+#      SIZE: 250
+#      # True when the first |SIZE| generated primitives should be cached for future epochs.
+#      # False if random samples should be regenerated each time the dataset is sampled.
+#      CACHE: True
+#      # Pool of modifier types to sample from
+#      MODIFIERS: [TranslateVertexModifier, TranslateEdgeModifier, TranslateFaceModifier, SplitEdgeModifier]
+#      # Minimum amount to shift elements around. Range ~ [-1,1]
+#      MIN_PERTUBRATION: -0.5
+#      # Maximum amount to shift elements around. Range ~ [-1,1]
+#      MAX_PERTUBRATION: -0.5
+#      # Mimimum amount of modifiers to sample for each primitive
+#      MIN_MODIFIER_STEPS: 5
+#      # Maximum amount of modifiers to sample for each primitive
+#      MAX_MODIFIER_STEPS: 10
+#    BATCH_SIZE: 1
+#    NUM_WORKERS: 0
+
+    DATASET:
+      # A dataset of pre-rendered images. Can be used on non-display powered machines,
+      # as well as support multiple batches
+      TYPE: pregenerated
+#      PATH: '/home/ubuntu/or/tmp/pycharm_project_838/data/generated/NoisyPrimitivesDataset_1_small'
+      PATH: '../data/generated/NoisyPrimitivesDataset_1_small'
+
+      # Dimension of modifier encodings. Normally the actual modifier data is shorter than what we allocate.
+      # However, this size should be on part with the img2seq model config.
+      MODIFIERS_DIM: 512
+
+    BATCH_SIZE: 1
+    NUM_WORKERS: 0
+
+    POSTPROCESS:
+      TYPE: naive
