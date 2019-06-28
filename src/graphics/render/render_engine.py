@@ -1,6 +1,7 @@
 from direct.showbase.ShowBase import ShowBase
 from direct.gui.DirectGui import *
 from direct.interval.IntervalGlobal import *
+from direct.task import Task
 from panda3d.core import lookAt
 from panda3d.core import Texture, GeomNode
 from panda3d.core import PerspectiveLens, Camera
@@ -9,7 +10,7 @@ from panda3d.core import Light, Spotlight, AmbientLight
 from panda3d.core import TextNode
 from panda3d.core import Filename
 from panda3d.core import MeshDrawer2D
-from direct.task import Task
+from panda3d.core import ConfigVariableString
 import sys
 import os
 import numpy as np
@@ -18,7 +19,10 @@ from math import sin, cos, pi
 
 
 class RenderEngine:
-    def __init__(self):
+    def __init__(self, rendering_config):
+        self.display_on = rendering_config['DISPLAY_ON']
+        self._initialize_display(self.display_on)
+
         self.base = self.initialize_scene()
 
         self.renderables = []
@@ -29,6 +33,13 @@ class RenderEngine:
         self.hud = []
 
         self.wireframe_mode = 0
+
+    @staticmethod
+    def _initialize_display(display_on):
+        if not display_on:
+            ConfigVariableString("window-type", "offscreen").setValue("offscreen")
+            ConfigVariableString("audio-library-name", "null").setValue("null")
+            ConfigVariableString("load-display", "p3tinydisplay").setValue("p3tinydisplay")
 
     def add_renderable(self, renderable):
         self.renderables.append(renderable)
@@ -239,10 +250,10 @@ class RenderEngine:
 
         # Now load the model:
         model = loader.loadModel(mydir + path)
-        model.reparentTo(render)
+        # model.reparentTo(render)
 
-        model.setScale(100)
-        model.hprInterval(1.5, (360, 360, 360)).loop()
+        # model.setScale(100)
+        # model.hprInterval(1.5, (360, 360, 360)).loop()
 
         return model
 
