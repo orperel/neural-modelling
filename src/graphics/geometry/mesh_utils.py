@@ -2,11 +2,16 @@ import numpy as np
 
 eps = 1e-8
 pi = np.pi
-up_vector = np.array(0, 0, 1)
+up_vector = np.array([0, 0, 1])
 
 
 def edge(v1, v2):
-    return (v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2])
+    return v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]
+
+
+def vertex_distance(v1, v2):
+    edge_vector = np.array(edge(v1, v2))
+    return np.linalg.norm(edge_vector)
 
 
 def sort_vertices_in_clockwise_order(v1, v2, v3):

@@ -11,6 +11,10 @@ class RenderableMesh(AbstractRenderable):
 
     def add_mesh(self, mesh):
         for vertex in mesh.vertices:
+            if vertex is None:
+                # Avoid canceled vertices, we add a dummy vertex to maintain running vertex ids
+                self._add_vertex_data(0.0, 0.0, 0.0)
+                continue
             x, y, z = vertex
             self._add_vertex_data(x, y, z)
 

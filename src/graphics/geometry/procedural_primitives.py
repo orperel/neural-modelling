@@ -1,5 +1,6 @@
 from graphics.geometry.mesh import Mesh
 
+
 class ProceduralPrimitives:
 
     def __init__(self):

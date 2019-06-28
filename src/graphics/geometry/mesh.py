@@ -57,6 +57,32 @@ class Mesh:
 
         return e_id
 
+    def update_edge(self, e_id, edge_coord, new_v_id):
+        """
+        Updates an edge id to point at a new vertex at edge[edge_coord].
+        :param e_id: Edge id of edge to update
+        :param edge_coord: 0 or 1 (first vertex or second vertex is updated)
+        :param new_v_id: v_id of new vertex the edge points at
+        """
+        old_e = self.edges[e_id]
+        old_v_id = old_e[edge_coord]
+
+        # Update vertices mappings
+        self.vertices_to_edges[old_v_id].remove(e_id)
+        self.vertices_to_edges.setdefault(new_v_id, []).append(e_id)
+
+        # Update edge (replace old vertex with new)
+        new_e = list(old_e)
+        new_e[edge_coord] = new_v_id
+        new_e = tuple(new_e)
+        self.edges[e_id] = new_e
+
+        # Update faces (replace old vertex with new)
+        for f_id in self.edges_to_faces[e_id]:
+            f = self.faces[f_id]
+            f = [v_id if v_id != old_v_id else new_v_id for v_id in f]
+            self.faces[f_id] = tuple(f)
+
     def add_face(self, f):
         """
         :param f: tuple of n vertex indices
@@ -81,6 +107,52 @@ class Mesh:
 
         return f_id
 
+    def _fetch_vertices_from_edge_group(self,  e1_id, e2_id, e3_id):
+        # TODO: Make sure this is CW
+        vertices = set()
+        for e_id in (e1_id, e2_id, e3_id):
+            v1, v2 = self.edges[e_id]
+            vertices.add(v1)
+            vertices.add(v2)
+        return tuple(vertices)
+
+    def add_face_from_edges(self, e1_id, e2_id, e3_id):
+        """
+        :param e1_id: e1 of the face to point to
+        :param e2_id: e2 of the face to point to
+        :param e3_id: e3 of the face to point to
+        :return face id of newly created face
+        """
+        f = self._fetch_vertices_from_edge_group(e1_id, e2_id, e3_id)
+        assert len(f) == 3
+
+        f_id = len(self.faces)
+        self.faces.append(f)
+
+        self.edges_to_faces.setdefault(e1_id, []).append(f_id)
+        self.edges_to_faces.setdefault(e2_id, []).append(f_id)
+        self.edges_to_faces.setdefault(e3_id, []).append(f_id)
+
+        return f_id
+
+    def update_face_from_edges(self, f_id, e1_id, e2_id, e3_id):
+        """
+        Updates a face id to point at 3 new edges.
+        :param f_id: Face id of edge to update
+        :param e1: e1 of the face to point to
+        :param e2: e2 of the face to point to
+        :param e3: e3 of the face to point to
+        """
+        new_f = self._fetch_vertices_from_edge_group(e1_id, e2_id, e3_id)
+        assert len(new_f) == 3
+
+        face_edges = self._find_all_edge_ids_associated_with_face(f_id)
+        for edge_id in face_edges:
+            self.edges_to_faces[edge_id].remove(f_id)
+        self.faces[f_id] = new_f
+        for edge_id in (e1_id, e2_id, e3_id):
+            self.edges_to_faces.setdefault(edge_id, []).append(f_id)
+
     def remove_vertex(self, v_id):
         """
         Removes the given vertex id from the vertex array, as well as all of it's associated edges and faces.
@@ -88,9 +160,10 @@ class Mesh:
         """
         associated_edges_and_faces = []
 
-        for e_id in self.vertices_to_edges[v_id]:
-            edge, associated_faces = self.remove_edge(e_id)
-            associated_edges_and_faces.append((edge, associated_faces))
+        v_edges = list(self.vertices_to_edges[v_id])
+        for e_id in v_edges:
+            edge, associated_faces, edges_of_associated_faces = self.remove_edge(e_id)
+            associated_edges_and_faces.append((edge, associated_faces, edges_of_associated_faces))
 
         self.vertices[v_id] = None
         return associated_edges_and_faces
@@ -141,7 +214,8 @@ class Mesh:
                                      for f_id in neighbour_faces}
 
         # Remove face associations, all faces touching the edge will be removed as well
-        for f_id in self.edges_to_faces[e_id]:
+        e_faces = list(self.edges_to_faces[e_id])
+        for f_id in e_faces:
             # Remove pointers from nearby edges pointing at the removed face
             # (note: these are the edges neighbouring the removed edge)
             for associated_e_id in edges_of_associated_faces[f_id]:
