@@ -1,0 +1,37 @@
+===================
+Known issues:
+===================
+
+Model:
+------
+1) Modifiers should include start & end tokens ("create new doc with cube prior", "close doc").
+2) No weight between various loss components
+3) Selected elements should always be represented by a single pos?
+4) NoisyPrimitivesDataset contains max_len=2048 for modifier encodings, is this really needed?
+
+Mesh simplification:
+--------------------
+1) Contract Pair produces holes for lego model
+2) Split Vertex relies on false logic, when reconnecting edges to the 2 new vertices, we shouldn't connect
+to the closest one to each vertex, that yields a bad mesh.
+
+Graphics:
+-----------
+1) Polygons are not always CW (backfacing)
+2) Rendering requires proper lighting
+3) Loaded obj should be scaled to normalized range
+
+Inference:
+-----------
+1) Soft select Logic is naive in terms of complexity (use KD tree)
+2)* (with Model: Selected elements should always be represented by a single pos?)
+
+
+===================
+Tasks
+===================
+
+Infrastructure:
+----------------
+1) No test dataloader employed during training
+2) Network weights + loss + images should be hooked into Tensorboard
