@@ -6,7 +6,7 @@ from src.data.noisy_primitives_dataset import NoisyPrimitivesDataset
 
 
 def load_config():
-    with open('config.yaml', 'r') as yaml_file:
+    with open('configs/config.yaml', 'r') as yaml_file:
         config_file = yaml.load(yaml_file)
     return config_file
 

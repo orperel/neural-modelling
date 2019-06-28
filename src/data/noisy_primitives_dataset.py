@@ -4,15 +4,19 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 import torch.nn.functional as F
-from data.modifiers_encoder import ModifiersEncoder
 from framework.event_delegator import EventDelegator
+from data.modifiers_encoder import ModifiersEncoder
 from graphics.render.render_engine import RenderEngine
 from graphics.render.renderable_mesh import RenderableMesh
-from graphics.geometry.procedural_primitives import ProceduralPrimitives
 from graphics.modifiers.translate_vertex import TranslateVertexModifier
 from graphics.modifiers.translate_edge import TranslateEdgeModifier
 from graphics.modifiers.translate_face import TranslateFaceModifier
 from graphics.modifiers.split_edge import SplitEdgeModifier
+from graphics.modifiers.split_vertex import SplitVertexModifier
+from graphics.modifiers.contract_vertex_pair import ContractVertexPairModifier
+from graphics.modifiers.create_primitive import CreatePrimitiveModifier
+from graphics.modifiers.finalize_model import FinalizeModelModifier
+from graphics.enums.primitive_enum import PrimitiveEnum
 
 
 class NoisyPrimitivesDataset(Dataset):
@@ -38,7 +42,9 @@ class NoisyPrimitivesDataset(Dataset):
         chosen_modifier_names = modifiers_pool or ['TranslateVertexModifier',
                                                    'TranslateEdgeModifier',
                                                    'TranslateFaceModifier',
-                                                   'SplitEdgeModifier']
+                                                   'SplitEdgeModifier',
+                                                   'SplitVertexModifier',
+                                                   'ContractVertexPairModifier']
         class_name_to_class = lambda class_name: getattr(sys.modules[__name__], class_name)
         self.modfiers_pool = [class_name_to_class(modifier) for modifier in chosen_modifier_names]
         self.modifiers_encoder = ModifiersEncoder()
@@ -94,6 +100,14 @@ class NoisyPrimitivesDataset(Dataset):
         elif modifier_class == SplitEdgeModifier:
             e_id = self._choose_random_edge(mesh)
             modifier = SplitEdgeModifier(mesh=mesh, e_id=e_id)
+        elif modifier_class == SplitVertexModifier:
+            v_id = self._choose_random_vertex(mesh)
+            tx, ty, tz = self._sample_uniform_perturbration()
+            modifier = SplitVertexModifier(mesh=mesh, v_id=v_id, tx=tx, ty=ty, tz=tz)
+        elif modifier_class == ContractVertexPairModifier:
+            e_id = self._choose_random_edge(mesh)
+            v1_id, v2_id = mesh.edges[e_id]
+            modifier = ContractVertexPairModifier(mesh=mesh, v1_id=v1_id, v2_id=v2_id)
         else:
             raise ValueError('Unsupported modifier class')
 
@@ -101,9 +115,20 @@ class NoisyPrimitivesDataset(Dataset):
 
     def generate_noisy_cube(self):
 
-        mesh = ProceduralPrimitives.generate_cube()
+        # TODO: Delete from here
+        # from graphics.render.model_decomposition import parse_model_geometry
+        # model = self.render_engine.load_model(path="/data/egg/lego.egg")
+        # meshes = parse_model_geometry(model)
+        # mesh = meshes[0]
+        #
+        # for v_id, v in enumerate(mesh.vertices):
+        #     mesh.vertices[v_id] = tuple([c * 125 for c in v])
+        # TODO: Delete until here and uncomment next..
+
+        create_primitive_modifier = CreatePrimitiveModifier(primitive_type=PrimitiveEnum.Cube)
+        mesh = create_primitive_modifier.execute()
         num_of_modifiers = random.randint(self.min_modifier_steps, self.max_modifier_steps)
-        modifiers = []
+        modifiers = [create_primitive_modifier]
 
         for _ in range(num_of_modifiers):
 
@@ -116,16 +141,18 @@ class NoisyPrimitivesDataset(Dataset):
 
             modifiers.append(modifier)
 
-        return mesh, modifiers
+        modifier = FinalizeModelModifier(mesh)
+        self.on_pre_modifier_execution.fire(modifier)
+        mesh = modifier.execute()
+        self.on_post_modifier_execution.fire(modifier)
+        modifiers.append(modifier)
 
-    @staticmethod
-    def encode_cube_prior():
-        return torch.FloatTensor([-0.1, 0.2, 0.1, -0.2, 0.2, -0.1, -0.2, 0.1])
+        return mesh, modifiers
 
     def encode_modifiers(self, modifiers):
 
-        encodings = [self.encode_cube_prior()]
-        max_len = 2048  # TODO: Or - alter by config
+        encodings = []
+        max_len = 512  # TODO: Or - alter by config
 
         for modifier in modifiers:
             encoded_modifier = self.modifiers_encoder.encode(modifier)
