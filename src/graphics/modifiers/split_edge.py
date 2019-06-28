@@ -7,9 +7,10 @@ class SplitEdgeModifier(AbstractModifier):
     def __init__(self, mesh: Mesh, e_id):
         super().__init__(mesh)
         self.e_id = e_id
+        self.edge = self.get_edge_data(e_id)
 
         # Will hold information of removed edge, to enable restoring it later, as well as the newly added vertex
-        self.edge, self.associated_faces, self.edges_of_associated_faces = None, None, None
+        self.associated_faces, self.edges_of_associated_faces = None, None
         self.new_vid, self.new_edges = None, []
 
     @staticmethod
@@ -18,12 +19,19 @@ class SplitEdgeModifier(AbstractModifier):
         v_new = tuple(v_dim * 0.5 for v_dim in v_new)
         return v_new
 
+    def get_edge_data(self, e_id):
+        edge = self.mesh.edges[e_id]
+        v0_id, v1_id = edge
+        v0_coords = self.mesh.vertices[v0_id]
+        v1_coords = self.mesh.vertices[v1_id]
+        return v0_coords, v1_coords
+
     def execute(self):
 
         edge_to_split = self.mesh.edges[self.e_id]
         v0, v1 = edge_to_split
-        v0_coords = self.mesh.vertices[v0]
-        v1_coords = self.mesh.vertices[v1]
+        v0_coords, v1_coords = self.get_edge_data(self.e_id)
+
         v_new = self._avg_vertex(v0_coords, v1_coords)
 
         # First remove the edge
