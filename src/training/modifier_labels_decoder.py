@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
-from app.modifier_visitors.modifier_id_visitor import ModifierIDVisitor, ModifierEnum
-from app.modifier_visitors.selected_element_type_visitor import ElementType
+from app.modifier_visitors.modifier_id_visitor import ModifierIDVisitor
+from graphics.enums.modifier_enum import ModifierEnum
+from graphics.enums.element_type_enum import ElementType
 
 
 class ModifierLabelsDecoder:

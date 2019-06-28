@@ -1,8 +1,12 @@
 from framework.abstract_modifier_visitor import AbstractModifierVisitor, visitor
-from graphics.modifiers.split_edge import SplitEdgeModifier
 from graphics.modifiers.translate_vertex import TranslateVertexModifier
 from graphics.modifiers.translate_edge import TranslateEdgeModifier
 from graphics.modifiers.translate_face import TranslateFaceModifier
+from graphics.modifiers.split_edge import SplitEdgeModifier
+from graphics.modifiers.split_vertex import SplitVertexModifier
+from graphics.modifiers.contract_vertex_pair import ContractVertexPairModifier
+from graphics.modifiers.create_primitive import CreatePrimitiveModifier
+from graphics.modifiers.finalize_model import FinalizeModelModifier
 
 
 class SelectedElementPositionVisitor(AbstractModifierVisitor):
@@ -18,6 +22,14 @@ class SelectedElementPositionVisitor(AbstractModifierVisitor):
     def _flatten_list(data):
         """ Flattens list of iterables """
         return list(sum(data, ()))
+
+    @visitor(CreatePrimitiveModifier)
+    def visit(self, modifier) -> list:
+        return []
+
+    @visitor(FinalizeModelModifier)
+    def visit(self, modifier) -> list:
+        return []
 
     @visitor(TranslateVertexModifier)
     def visit(self, modifier) -> list:
@@ -37,4 +49,14 @@ class SelectedElementPositionVisitor(AbstractModifierVisitor):
     @visitor(SplitEdgeModifier)
     def visit(self, modifier) -> list:
         edge_data = modifier.edge
+        return self._flatten_list(edge_data)
+
+    @visitor(SplitVertexModifier)
+    def visit(self, modifier) -> list:
+        v_data = modifier.v_data
+        return self._flatten_list(v_data)
+
+    @visitor(ContractVertexPairModifier)
+    def visit(self, modifier) -> list:
+        edge_data = (modifier.v1, modifier.v2)
         return self._flatten_list(edge_data)

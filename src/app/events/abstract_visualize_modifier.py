@@ -40,7 +40,7 @@ class VisualizeModifierEventHandler(EventHandler):
         self.render_engine.clear_renderables()
         self.render_engine.add_renderable(renderable_obj)
         self.render_engine.add_renderable(renderable_selection)
-        self.render_engine.run_for(seconds=2)
+        self.render_engine.run_for(seconds=5)
 
     @staticmethod
     @abstractmethod

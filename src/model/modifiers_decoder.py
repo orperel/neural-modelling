@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from app.modifier_visitors.modifier_id_visitor import ModifierIDVisitor
-from app.modifier_visitors.selected_element_type_visitor import ElementType
+from graphics.enums.element_type_enum import ElementType
 
 
 class ModifiersDecoder(nn.Module):

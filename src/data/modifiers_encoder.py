@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from graphics.enums.element_type_enum import ElementType
 from app.modifier_visitors.modifier_id_visitor import ModifierIDVisitor
 from app.modifier_visitors.modifier_params_visitor import ModifierParamsVisitor
 from app.modifier_visitors.selected_element_position_visitor import SelectedElementPositionVisitor
@@ -32,7 +33,7 @@ class ModifiersEncoder:
 
     def encode_selected_element_type(self, modifier):
         selected_element_type = self.selected_element_type_visitor.visit(modifier).value
-        selected_element_type = self.to_one_hot(n=3, k=selected_element_type)
+        selected_element_type = self.to_one_hot(n=len(ElementType), k=selected_element_type)
         return selected_element_type
 
     def encode_selected_element_pos(self, modifier):
