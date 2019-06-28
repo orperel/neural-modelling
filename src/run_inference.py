@@ -2,15 +2,15 @@ import yaml
 from graphics.render.render_engine import RenderEngine
 from graphics.render.renderable_mesh import RenderableMesh
 from graphics.render.model_decomposition import parse_model_geometry
-from training.train import Train
+from inference.inference import Inference
 import torch
 import random
 import numpy as np
 
 
 def load_config():
-    with open('configs/training_config.yaml', 'r') as yaml_file:
-        config_file = yaml.load(yaml_file, Loader=yaml.FullLoader)
+    with open('configs/inference_config.yaml', 'r') as yaml_file:
+        config_file = yaml.load(yaml_file)
     return config_file
 
 
@@ -23,6 +23,7 @@ def set_seed(config):
         if config['CUDA']:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+
 
 
 def handle_model(engine, model_path="/data/egg/lego.egg"):
@@ -44,5 +45,5 @@ if config['RENDERING']['RENDERING_ENGINE_ON']:
 else:
     engine = None
 
-trainer = Train(config=config, engine=engine)
-trainer.train()
+inferer = Inference(config=config, engine=engine)
+inferer.infer()
