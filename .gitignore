@@ -1,0 +1,5 @@
+legacy/.idea/*
+*.pyc
+legacy/deprecated/*
+.idea/*
+.DS_Store*
