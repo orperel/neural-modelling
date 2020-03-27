@@ -1,0 +1,3 @@
+legacy/.idea/*
+*.pyc
+legacy/deprecated/*
